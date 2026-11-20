@@ -1,0 +1,12 @@
+[package]
+name = "harness"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "harness"
+path = "src/main.rs"
+
+[dependencies]
+pocketboy-core = { path = "../core" }
+png = "0.18"
