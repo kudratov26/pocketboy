@@ -58,11 +58,11 @@ impl Trace {
         }
     }
 
-    fn record(&mut self, gb: &GameBoy) {
+    fn record(&mut self, gb: &mut GameBoy) {
         if let Some(f) = self.file.as_mut() {
             use std::io::Write;
             let pc = gb.cpu.pc;
-            let op = gb.cpu.pc as usize;
+            let op = gb.bus.read(pc);
             let _ = writeln!(f, "{:04X} {:02X}", pc, op);
             self.count += 1;
         }
@@ -103,7 +103,27 @@ fn run_blargg(gb: &mut GameBoy, cycles: u64, trace: &mut Trace) -> (String, Stri
     if out.contains("Failed") {
         return ("FAIL".into(), out);
     }
-    ("TIMEOUT".into(), format!("no serial verdict after {} cycles", cycles))
+    let detail = if out.contains("Passed") {
+        out
+    } else if out.contains("Failed") {
+        out
+    } else {
+        format!("no serial verdict after {} cycles", cycles)
+    };
+    if std::env::var_os("HARNESS_DEBUG").is_some() {
+        eprintln!(
+            "debug: pc={:04X} sp={:04X} a={:02X} line={} mode={} serial_len={}",
+            gb.cpu.pc, gb.cpu.sp, gb.cpu.a, gb.bus.ppu.line, gb.bus.ppu.mode, gb.bus.serial.output.len()
+        );
+    }
+    ("TIMEOUT".into(), detail)
+}
+
+pub fn debug_blargg(gb: &GameBoy) {
+    eprintln!(
+        "debug: pc={:04X} sp={:04X} a={:02X} serial_len={} lcdc={:02X} line={}",
+        gb.cpu.pc, gb.cpu.sp, gb.cpu.a, gb.bus.serial.output.len(), gb.bus.ppu.lcdc, gb.bus.ppu.line
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -412,7 +432,7 @@ fn run_rom(path: &Path, rel: &str, trace: &mut Trace) -> (String, String) {
         Family::Other => {
             let mut ran = 0u64;
             while ran < DEFAULT_CYCLES {
-                trace.record(&gb);
+                trace.record(&mut gb);
                 ran += gb.step() as u64;
             }
             ("PASS".into(), format!("ran {} cycles", ran))
@@ -511,7 +531,7 @@ fn main() -> ExitCode {
         Family::Other => {
             let mut ran = 0u64;
             while ran < cycles {
-                trace.record(&gb);
+                trace.record(&mut gb);
                 ran += gb.step() as u64;
             }
             ("PASS".into(), format!("ran {} cycles", ran))

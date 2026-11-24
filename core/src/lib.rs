@@ -9,6 +9,9 @@ pub mod ppu;
 pub mod serial;
 pub mod timer;
 
+#[cfg(test)]
+mod trace_test;
+
 pub use gameboy::GameBoy;
 pub use joypad::{ButtonState, Joypad};
 
